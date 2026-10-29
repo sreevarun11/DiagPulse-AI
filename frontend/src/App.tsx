@@ -23,6 +23,7 @@ export const App: React.FC = () => {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/check-symptoms" element={<Classifier />} />
               <Route path="/classifier" element={<Classifier />} />
               <Route path="/results" element={<Results />} />
               <Route path="/performance" element={<Performance />} />

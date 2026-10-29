@@ -4,18 +4,23 @@
 
 @layer base {
   html {
+    font-size: 16px;
     color-scheme: light;
     scroll-behavior: smooth;
   }
   
   body {
-    @apply bg-slate-50 text-slate-800 font-sans antialiased min-h-screen selection:bg-brand-100 selection:text-brand-900;
+    @apply bg-slate-50 text-slate-800 font-sans text-base leading-relaxed antialiased min-h-screen selection:bg-brand-100 selection:text-brand-900;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Custom Clean Scrollbar for Clinical Panels */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-slate-900 tracking-tight font-bold;
+  }
+
+  /* Custom Clean Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -30,12 +35,14 @@
 
 /* Accessible focus ring utility */
 .focus-visible-ring {
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2;
 }
 
-/* Subtle glass surface */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
