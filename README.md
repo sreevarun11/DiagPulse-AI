@@ -1,2 +1,2 @@
 # DiagPulse AI
-
+AI-Powered Medical Diagnosis Classifier is a machine learning-based web application that analyzes user-selected symptoms and provides ranked disease possibilities. It uses a trained ML model to generate predictions and aims to improve understanding through symptom-based analysis, prediction explanations, and model performance evaluation. The project is built using React, Vite, Python, and FastAPI. It is designed as an educational decision-support prototype and does not replace professional medical diagnosis.
