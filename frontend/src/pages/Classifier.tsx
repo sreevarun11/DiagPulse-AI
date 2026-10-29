@@ -4,21 +4,43 @@ import {
   Search, 
   X, 
   AlertCircle, 
-  Sparkles, 
   RotateCcw, 
   Check, 
   Stethoscope, 
-  Filter, 
   ChevronRight,
   Info,
   CheckCircle2,
   RefreshCw,
-  Layers,
-  Activity
+  Sparkles,
+  HelpCircle,
+  FlaskConical
 } from 'lucide-react';
-import { api, ApiError } from '../api/client';
+import { api } from '../api/client';
 import { SymptomItem, SymptomsResponse } from '../types';
-import { DisclaimerBanner } from '../components/DisclaimerBanner';
+
+// Predefined documented demo cases using verified feature IDs
+const DEMO_CASES = [
+  {
+    name: 'Respiratory Presentation (Asthma / Bronchitis)',
+    symptoms: ['symptom_cough', 'symptom_wheezing', 'symptom_shortness_of_breath'],
+  },
+  {
+    name: 'Febrile Presentation (Viral Syndrome)',
+    symptoms: ['symptom_fever', 'symptom_headache', 'symptom_fatigue', 'symptom_sore_throat'],
+  }
+];
+
+// Common shortcut symptoms (must match exact verified feature IDs)
+const COMMON_SHORTCUTS = [
+  { id: 'symptom_fever', label: 'Fever' },
+  { id: 'symptom_cough', label: 'Cough' },
+  { id: 'symptom_fatigue', label: 'Fatigue' },
+  { id: 'symptom_shortness_of_breath', label: 'Shortness of Breath' },
+  { id: 'symptom_headache', label: 'Headache' },
+  { id: 'symptom_chest_pain', label: 'Chest Pain' },
+  { id: 'symptom_sore_throat', label: 'Sore Throat' },
+  { id: 'symptom_wheezing', label: 'Wheezing' },
+];
 
 export const Classifier: React.FC = () => {
   const navigate = useNavigate();
@@ -28,25 +50,33 @@ export const Classifier: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isLoadingSymptoms, setIsLoadingSymptoms] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isColdStarting, setIsColdStarting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [isDemoActive, setIsDemoActive] = useState<boolean>(false);
+  const [demoCaseName, setDemoCaseName] = useState<string>('');
 
-  // Load symptoms dynamically from backend
   const loadSymptoms = () => {
     setIsLoadingSymptoms(true);
     setErrorMessage(null);
-    setIsOffline(false);
+
+    // Detect potential cold-start if request takes longer than 3 seconds
+    const coldTimer = setTimeout(() => {
+      setIsColdStarting(true);
+    }, 3000);
 
     api.getSymptoms()
       .then((data) => {
+        clearTimeout(coldTimer);
+        setIsColdStarting(false);
         setSymptomsData(data);
         setIsLoadingSymptoms(false);
       })
       .catch((err) => {
+        clearTimeout(coldTimer);
+        setIsColdStarting(false);
         setIsLoadingSymptoms(false);
-        setIsOffline(true);
         setErrorMessage(
-          err.message || 'Diagnostic backend is unreachable. Please verify FastAPI is running on http://127.0.0.1:8000.'
+          err.message || 'The diagnostic service is currently unavailable. Please check that the server is running.'
         );
       });
   };
@@ -55,7 +85,7 @@ export const Classifier: React.FC = () => {
     loadSymptoms();
   }, []);
 
-  // Filter symptoms based on search and selected organ system category
+  // Filter symptoms based on search and selected category
   const filteredSymptoms = useMemo(() => {
     if (!symptomsData) return [];
     return symptomsData.symptoms.filter((item) => {
@@ -66,7 +96,7 @@ export const Classifier: React.FC = () => {
     });
   }, [symptomsData, searchQuery, selectedCategory]);
 
-  // Selected item objects for quick chip summary
+  // Selected item objects for summary
   const selectedItems = useMemo(() => {
     if (!symptomsData) return [];
     const lookup = new Map<string, SymptomItem>(symptomsData.symptoms.map(s => [s.id, s]));
@@ -75,6 +105,7 @@ export const Classifier: React.FC = () => {
 
   const toggleSymptom = (id: string) => {
     setErrorMessage(null);
+    setIsDemoActive(false);
     if (selectedIds.includes(id)) {
       setSelectedIds(selectedIds.filter(item => item !== id));
     } else {
@@ -86,17 +117,24 @@ export const Classifier: React.FC = () => {
     }
   };
 
-  const handleReset = () => {
+  const handleClearAll = () => {
     setSelectedIds([]);
     setErrorMessage(null);
-    setSearchQuery('');
-    setSelectedCategory('All');
+    setIsDemoActive(false);
+    setDemoCaseName('');
+  };
+
+  const handleApplyDemoCase = (index: number = 0) => {
+    const demo = DEMO_CASES[index];
+    setSelectedIds([...demo.symptoms]);
+    setIsDemoActive(true);
+    setDemoCaseName(demo.name);
+    setErrorMessage(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedIds.length === 0) {
-      setErrorMessage('Please select at least 1 symptom to perform clinical evaluation.');
+    if (selectedIds.length === 0 || isSubmitting) {
       return;
     }
 
@@ -105,264 +143,175 @@ export const Classifier: React.FC = () => {
 
     try {
       const response = await api.predict(selectedIds);
-      // Navigate to results page with prediction response and selected symptom details
       navigate('/results', {
         state: {
           predictionData: response,
           selectedSymptoms: selectedItems,
+          isSampleCase: isDemoActive,
         },
       });
     } catch (err: any) {
-      setErrorMessage(err.message || 'Diagnostic inference failed. Please check backend connection.');
+      setErrorMessage(err.message || 'Diagnostic assessment failed. Please try again.');
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* 1. Clinical Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
-            <Activity className="w-3.5 h-3.5 text-brand-700" />
-            <span>Interactive Clinical Assessment</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Stethoscope className="w-7 h-7 text-slate-900" aria-hidden="true" />
-            <span>Outpatient Symptom Classifier</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
-            Record patient-reported signs from the verified 174-feature dictionary. The engine computes ranked differential hypotheses with exact linear attribution.
-          </p>
-        </div>
-
-        {selectedIds.length > 0 && (
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200/80 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition shadow-subtle self-start md:self-center focus-visible-ring"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Clear Selection ({selectedIds.length})</span>
-          </button>
-        )}
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      {/* Page Title & Instructions */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+          <Stethoscope className="w-8 h-8 text-brand-700" aria-hidden="true" />
+          <span>Check Symptoms</span>
+        </h1>
+        <p className="text-base text-slate-600 mt-2 max-w-2xl">
+          Select reported patient signs to generate ranked differential possibilities with transparent model explanations.
+        </p>
       </div>
 
-      {/* Advisory Banner */}
-      <DisclaimerBanner compact />
-
-      {/* Error Alert / Offline State */}
-      {errorMessage && (
-        <div 
-          className="bg-rose-50/90 border border-rose-200/90 rounded-2xl p-4 text-xs sm:text-sm text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-subtle" 
-          role="alert"
-        >
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-semibold text-rose-900">Communication Error</h4>
-              <p className="text-rose-800 text-xs mt-0.5">{errorMessage}</p>
-            </div>
+      {/* Cold Start Notice */}
+      {isColdStarting && (
+        <div className="mb-6 p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-sm flex items-start gap-3">
+          <div className="animate-spin w-4 h-4 border-2 border-sky-700 border-t-transparent rounded-full mt-0.5" />
+          <div>
+            <p className="font-semibold">The server is starting up.</p>
+            <p className="text-xs text-sky-800 mt-0.5">This may take a moment on initial launch. Please wait while the model initializes.</p>
           </div>
-          {isOffline && (
-            <button
-              type="button"
-              onClick={loadSymptoms}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-900 text-white rounded-lg text-xs font-semibold hover:bg-rose-800 transition flex-shrink-0"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Retry Backend</span>
-            </button>
-          )}
         </div>
       )}
 
-      {/* 2. Active Selection Summary Cockpit */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-              <span>Reported Patient Presentation</span>
-            </h2>
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-xs font-bold font-mono">
-              {selectedIds.length} / 50 Selected
-            </span>
+      {/* Error Alert */}
+      {errorMessage && (
+        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-sm flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Assessment Notice</p>
+              <p className="text-xs text-rose-800 mt-0.5">{errorMessage}</p>
+            </div>
           </div>
-
-          {/* Presentation Sufficiency Status */}
-          <div>
-            {selectedIds.length === 0 ? (
-              <span className="text-xs text-slate-400 font-medium">No symptoms selected</span>
-            ) : selectedIds.length === 1 ? (
-              <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/60 px-2.5 py-1 rounded-full font-medium">
-                <Info className="w-3.5 h-3.5 text-amber-600" />
-                <span>1 symptom: Will trigger safety abstention (min. 2 recommended)</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Presentation sufficiency satisfied</span>
-              </span>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={loadSymptoms}
+            className="text-xs font-semibold px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-rose-800 hover:bg-rose-100 transition flex-shrink-0"
+          >
+            Retry
+          </button>
         </div>
+      )}
 
-        {/* Selected Chips */}
-        {selectedIds.length === 0 ? (
-          <div className="py-6 text-center text-slate-400 text-xs sm:text-sm space-y-1">
-            <p className="font-medium text-slate-500">Presentation is currently empty</p>
-            <p className="text-slate-400">Search symptoms below or select by bodily system to begin evaluation.</p>
+      {/* Two-Column Main Layout: Picker (Left) & Sticky Summary Panel (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Symptom Selector (8 cols) */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+          {/* 1. Common Symptoms Shortcuts Row */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Common Shortcuts
+              </span>
+              <span className="text-xs text-slate-400">Quick selection shortcuts</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {COMMON_SHORTCUTS.map((shortcut) => {
+                const isSelected = selectedIds.includes(shortcut.id);
+                return (
+                  <button
+                    key={shortcut.id}
+                    type="button"
+                    onClick={() => toggleSymptom(shortcut.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition focus-visible-ring flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-brand-700 border-brand-700 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{shortcut.label}</span>
+                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
-            {selectedItems.map((item) => (
-              <span
-                key={item.id}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-900 border border-slate-200 hover:border-slate-300 transition-colors shadow-subtle group"
-              >
-                <span className="font-medium">{item.name}</span>
-                <span className="text-[10px] text-slate-400 font-normal">({item.category.split(' ')[0]})</span>
+
+          {/* 2. Search & Category Filters */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search all 174 symptoms (e.g. cough, fever, chest pain)..."
+                className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus-visible-ring placeholder:text-slate-400 shadow-sm"
+                aria-label="Search symptoms"
+              />
+              {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => toggleSymptom(item.id)}
-                  className="text-slate-400 hover:text-rose-600 focus-visible-ring rounded-md p-0.5 transition-colors ml-0.5"
-                  title={`Remove ${item.name}`}
-                  aria-label={`Remove ${item.name}`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  aria-label="Clear search query"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4" />
                 </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+              )}
+            </div>
 
-      {/* 3. Main Symptom Picker Interface */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        {/* Category Sidebar */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-card space-y-2 sticky top-20">
-          <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-100">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-slate-400" /> 
-              <span>Organ Systems</span>
-            </h3>
-            <span className="text-[11px] text-slate-400 font-mono">
-              {symptomsData?.categories.length || 8} groups
-            </span>
-          </div>
-
-          <div className="space-y-1 pt-1">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('All')}
-              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between focus-visible-ring ${
-                selectedCategory === 'All'
-                  ? 'bg-slate-900 text-white font-semibold shadow-sm'
-                  : 'text-slate-700 hover:bg-slate-100/80'
-              }`}
-            >
-              <span>All Systems</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
-                selectedCategory === 'All' ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-500'
-              }`}>
-                {symptomsData?.total_count || 174}
-              </span>
-            </button>
-
-            {symptomsData?.categories.map((cat) => {
-              const count = symptomsData.symptoms.filter(s => s.category === cat).length;
-              const isSelected = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between focus-visible-ring ${
-                    isSelected
-                      ? 'bg-slate-900 text-white font-semibold shadow-sm'
-                      : 'text-slate-700 hover:bg-slate-100/80'
-                  }`}
-                >
-                  <span className="truncate pr-1">{cat}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono flex-shrink-0 ${
-                    isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Symptoms Grid & Search */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search symptoms by name (e.g., cough, chest pain, wheezing, fatigue, jaundice)..."
-              className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200/90 rounded-2xl text-xs sm:text-sm focus-visible-ring placeholder:text-slate-400 shadow-card transition-all"
-              aria-label="Search symptoms"
-            />
-            {searchQuery && (
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-md"
-                aria-label="Clear search"
+                onClick={() => setSelectedCategory('All')}
+                className={`px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition focus-visible-ring ${
+                  selectedCategory === 'All'
+                    ? 'bg-slate-900 text-white font-semibold'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
               >
-                <X className="w-4 h-4" />
+                All ({symptomsData?.total_count || 174})
               </button>
-            )}
+              {symptomsData?.categories.map((cat) => {
+                const count = symptomsData.symptoms.filter(s => s.category === cat).length;
+                const isCurrent = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition focus-visible-ring ${
+                      isCurrent
+                        ? 'bg-slate-900 text-white font-semibold'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {cat} ({count})
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Active Filter Indicators */}
-          {(selectedCategory !== 'All' || searchQuery) && (
-            <div className="flex items-center gap-2 text-xs text-slate-500 px-1">
-              <span>Showing:</span>
-              {selectedCategory !== 'All' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-200/70 text-slate-800 rounded-md font-medium text-[11px]">
-                  Category: {selectedCategory}
-                  <button onClick={() => setSelectedCategory('All')} className="hover:text-rose-600"><X className="w-3 h-3" /></button>
-                </span>
-              )}
-              {searchQuery && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-200/70 text-slate-800 rounded-md font-medium text-[11px]">
-                  Query: "{searchQuery}"
-                  <button onClick={() => setSearchQuery('')} className="hover:text-rose-600"><X className="w-3 h-3" /></button>
-                </span>
-              )}
-              <span className="ml-auto font-mono text-[11px] text-slate-400">
-                {filteredSymptoms.length} matches
-              </span>
-            </div>
-          )}
-
-          {/* Symptom Cards Grid */}
+          {/* 3. Symptom Grid (Large Clickable Tiles) */}
           {isLoadingSymptoms ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-500 text-xs sm:text-sm shadow-card space-y-3">
+            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500 space-y-3">
               <div className="animate-spin w-7 h-7 border-2 border-slate-900 border-t-transparent rounded-full mx-auto" />
-              <p className="font-medium text-slate-700">Loading verified 174-symptom feature schema from API...</p>
-              <p className="text-xs text-slate-400">Connecting to FastAPI on http://127.0.0.1:8000</p>
+              <p className="text-sm">Loading verified 174-symptom catalog...</p>
             </div>
           ) : filteredSymptoms.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-500 text-xs sm:text-sm shadow-card space-y-3">
-              <p className="font-semibold text-slate-700">No symptoms match "{searchQuery}" in {selectedCategory}.</p>
-              <p className="text-xs text-slate-500">Try adjusting your search query or reset category filter.</p>
+            <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-600 space-y-2">
+              <p className="font-semibold text-slate-800">No symptoms match "{searchQuery}"</p>
+              <p className="text-xs text-slate-500">Try checking your spelling or clear category filters to explore the full catalog.</p>
               <button
                 type="button"
                 onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold transition"
+                className="text-xs font-semibold text-brand-700 hover:underline pt-1 inline-block"
               >
-                Reset Search Filters
+                Reset search & filters
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[520px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[580px] overflow-y-auto pr-1">
               {filteredSymptoms.map((item) => {
                 const isSelected = selectedIds.includes(item.id);
                 return (
@@ -370,71 +319,156 @@ export const Classifier: React.FC = () => {
                     key={item.id}
                     type="button"
                     onClick={() => toggleSymptom(item.id)}
-                    className={`text-left p-3.5 rounded-xl border transition-all text-xs flex items-start justify-between gap-2.5 focus-visible-ring group ${
+                    className={`text-left p-3.5 rounded-xl border transition-all text-sm flex items-center justify-between gap-3 focus-visible-ring ${
                       isSelected
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-card'
-                        : 'bg-white border-slate-200/80 text-slate-800 hover:border-slate-300 hover:bg-slate-50/70 shadow-subtle'
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 hover:bg-slate-50'
                     }`}
+                    role="checkbox"
+                    aria-checked={isSelected}
                   >
-                    <div className="space-y-1">
-                      <span className="block leading-snug font-medium">{item.name}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] block ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}>
-                          {item.category}
-                        </span>
-                        {item.is_rare && (
-                          <span className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
-                            isSelected ? 'bg-amber-900/80 text-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                          }`}>
-                            Rare
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    <span className="font-medium leading-snug">{item.name}</span>
                     <div
-                      className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-                        isSelected 
-                          ? 'bg-brand-500 border-brand-500 text-slate-950 font-bold' 
-                          : 'border-slate-300 group-hover:border-slate-400'
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition ${
+                        isSelected
+                          ? 'bg-brand-500 border-brand-500 text-slate-950'
+                          : 'border-slate-300'
                       }`}
                       aria-hidden="true"
                     >
-                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </button>
                 );
               })}
             </div>
           )}
+        </div>
 
-          {/* Action Submission Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs text-slate-600 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-slate-900" />
-              <span>
-                <strong className="text-slate-900 font-semibold">{selectedIds.length}</strong> patient signs selected for differential analysis.
-              </span>
+        {/* Right Column: Sticky "Your Symptoms" Panel (4-5 cols) */}
+        <div className="lg:col-span-5 xl:col-span-4 sticky top-20">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
+            {/* Panel Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">Your Symptoms</h2>
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-xs font-bold font-mono">
+                  {selectedIds.length}
+                </span>
+              </div>
+              {selectedIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="text-xs text-slate-500 hover:text-rose-600 transition font-medium focus-visible-ring"
+                >
+                  Clear all
+                </button>
+              )}
             </div>
 
+            {/* Try a Sample Case Trigger */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between gap-2">
+              <div className="text-xs">
+                <span className="font-semibold text-slate-800 block">Need a quick demonstration?</span>
+                <span className="text-slate-500 text-[11px]">Load verified demo presentation data</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleApplyDemoCase(0)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-brand-700 hover:bg-slate-100 transition shadow-xs flex-shrink-0 focus-visible-ring"
+              >
+                Try sample case
+              </button>
+            </div>
+
+            {/* Sample Case Active Banner */}
+            {isDemoActive && (
+              <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start justify-between gap-2">
+                <div>
+                  <span className="font-semibold block">Sample Case / Demo Data Active</span>
+                  <span className="text-[11px] text-amber-800">{demoCaseName}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="text-amber-700 hover:text-amber-950 text-[11px] font-semibold underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
+            {/* Selected Symptoms Chips List */}
+            {selectedIds.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm space-y-1">
+                <p className="font-medium text-slate-600">No symptoms selected</p>
+                <p className="text-xs text-slate-400">Click symptoms on the left or try the sample case above.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                <div className="flex flex-wrap gap-2">
+                  {selectedItems.map((item) => (
+                    <span
+                      key={item.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200"
+                    >
+                      <span>{item.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleSymptom(item.id)}
+                        className="text-slate-400 hover:text-rose-600 focus-visible-ring rounded p-0.5 ml-0.5"
+                        title={`Remove ${item.name}`}
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Validation Guidance / Hint */}
+            <div className="pt-2">
+              {selectedIds.length < 3 ? (
+                <p className="text-xs text-slate-500 leading-normal flex items-start gap-1.5">
+                  <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                  <span>Select at least 3 symptoms for a more informative assessment.</span>
+                </p>
+              ) : (
+                <p className="text-xs text-emerald-700 leading-normal flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{selectedIds.length} symptoms selected — ready for evaluation.</span>
+                </p>
+              )}
+            </div>
+
+            {/* Generate Action Button */}
             <button
               type="button"
               onClick={handleSubmit}
               disabled={selectedIds.length === 0 || isSubmitting}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-card focus-visible-ring group"
+              className="w-full py-3 px-4 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm flex items-center justify-center gap-2 text-sm focus-visible-ring"
             >
               {isSubmitting ? (
                 <>
                   <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                  <span>Evaluating Clinical Likelihoods...</span>
+                  <span>Analyzing presentation...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-brand-400 group-hover:rotate-12 transition-transform" />
-                  <span>Generate Differential Diagnosis</span>
-                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                  <Sparkles className="w-4 h-4" />
+                  <span>Generate results</span>
+                  <ChevronRight className="w-4 h-4" />
                 </>
               )}
             </button>
+
+            {/* Concise Safety Disclaimer Near Action */}
+            <p className="text-[11px] text-slate-400 text-center leading-normal">
+              Suggestions are informational decision-support hypotheses, not clinical diagnoses.
+            </p>
           </div>
         </div>
       </div>
