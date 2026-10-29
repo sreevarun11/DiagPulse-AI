@@ -1,0 +1,34 @@
+[
+  {
+    "scenario": "baseline_test",
+    "description": "Standard held-out test presentations (Full reported symptoms)",
+    "dropout_rate": 0.0,
+    "top1_accuracy": 0.4155,
+    "top3_accuracy": 0.7333,
+    "macro_f1": 0.2021
+  },
+  {
+    "scenario": "minor_symptom_dropout_10pct",
+    "description": "10% random symptom omissions (patient forgot minor signs)",
+    "dropout_rate": 0.1,
+    "top1_accuracy": 0.3716,
+    "top3_accuracy": 0.6889,
+    "macro_f1": 0.1841
+  },
+  {
+    "scenario": "moderate_symptom_dropout_25pct",
+    "description": "25% random symptom omissions (patient presents early in disease progression)",
+    "dropout_rate": 0.25,
+    "top1_accuracy": 0.3225,
+    "top3_accuracy": 0.6136,
+    "macro_f1": 0.1628
+  },
+  {
+    "scenario": "severe_symptom_dropout_50pct",
+    "description": "50% random symptom omissions (severely truncated or hurried triage report)",
+    "dropout_rate": 0.5,
+    "top1_accuracy": 0.2311,
+    "top3_accuracy": 0.5037,
+    "macro_f1": 0.0942
+  }
+]

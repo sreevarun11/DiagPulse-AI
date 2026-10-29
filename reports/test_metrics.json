@@ -1,0 +1,9 @@
+{
+  "evaluation_dataset": "Held-Out Test Set (10,005 cases)",
+  "total_test_cases": 10005,
+  "top1_accuracy": 0.4155,
+  "top3_accuracy": 0.7333,
+  "macro_f1": 0.2021,
+  "weighted_f1": 0.4045,
+  "brier_score": 0.7259
+}

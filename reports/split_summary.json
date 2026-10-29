@@ -1,0 +1,10 @@
+{
+  "random_seed": 42,
+  "total_cases": 100000,
+  "train_cases": 79993,
+  "val_cases": 10002,
+  "test_cases": 10005,
+  "train_classes": 46,
+  "val_classes": 42,
+  "test_classes": 45
+}
