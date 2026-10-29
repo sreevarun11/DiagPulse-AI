@@ -30,9 +30,9 @@ describe('Frontend Pages & Components Suite', () => {
         <Home />
       </MemoryRouter>
     );
-    expect(screen.getByText(/Evidence-Based Differential Clinical Decision Support/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Launch Symptom Classifier/i })).toBeInTheDocument();
-    expect(screen.getByText(/How DiagPulse AI Assists Consultation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evidence-Based Clinical Decision Support/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Check Symptoms/i })).toBeInTheDocument();
+    expect(screen.getByText(/How DiagPulse AI Works/i)).toBeInTheDocument();
   });
 
   it('renders Terms of Clinical Use page', () => {
