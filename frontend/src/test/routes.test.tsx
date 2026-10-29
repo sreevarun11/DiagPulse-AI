@@ -74,8 +74,8 @@ describe('Frontend Pages & Components Suite', () => {
         <NotFound />
       </MemoryRouter>
     );
-    expect(screen.getByText(/Clinical Route Not Found/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Return to Overview/i })).toBeInTheDocument();
+    expect(screen.getByText(/We couldn't find that page/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Return to Home/i })).toBeInTheDocument();
   });
 
   it('ErrorBoundary catches errors and presents friendly UI without stack traces', () => {
@@ -93,7 +93,7 @@ describe('Frontend Pages & Components Suite', () => {
       </ErrorBoundary>
     );
 
-    expect(screen.getByText(/Clinical Application Error/i)).toBeInTheDocument();
+    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
     expect(screen.getByText(/Reload Application/i)).toBeInTheDocument();
     // Verify stack trace is NOT exposed
     expect(screen.queryByText(/at ProblemChild/i)).not.toBeInTheDocument();

@@ -12,21 +12,21 @@ interface State {
 
 export const ErrorBoundaryFallback: React.FC<{ onReset: () => void; errorMsg: string }> = ({ onReset, errorMsg }) => {
   return (
-    <div className="min-h-[70vh] flex items-center justify-center p-4 bg-slate-50/70">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-card border border-slate-200/80 p-8 text-center space-y-5">
-        <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center mx-auto">
-          <AlertTriangle className="w-6 h-6" aria-hidden="true" />
+    <div className="min-h-[70vh] flex items-center justify-center p-4">
+      <div className="max-w-lg w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-10 text-center space-y-6">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-7 h-7" aria-hidden="true" />
         </div>
         
         <div className="space-y-2">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Clinical Application Error</h2>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            An unexpected runtime condition occurred. To preserve clinical state safety, the active view was suspended. No patient or symptom data was compromised.
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Something went wrong</h2>
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-sm mx-auto">
+            An unexpected error occurred in this view. No patient data has been saved or sent externally.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2.5 text-[11px] text-slate-600 font-mono text-left break-all">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 font-mono text-left break-all">
             {errorMsg}
           </div>
         )}
@@ -34,16 +34,16 @@ export const ErrorBoundaryFallback: React.FC<{ onReset: () => void; errorMsg: st
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={onReset}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition focus-visible-ring"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-700 text-white text-sm font-semibold rounded-xl hover:bg-brand-800 transition shadow-sm focus-visible-ring"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
             <span>Reload Application</span>
           </button>
           <a
             href="/"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition focus-visible-ring"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition shadow-xs focus-visible-ring"
           >
-            <Home className="w-3.5 h-3.5 text-slate-500" />
+            <Home className="w-4 h-4 text-slate-500" />
             <span>Return to Home</span>
           </a>
         </div>
@@ -61,12 +61,11 @@ export class ErrorBoundary extends Component<Props, State> {
   public static getDerivedStateFromError(error: Error): State {
     return {
       hasError: true,
-      errorMessage: error.message || 'An unexpected runtime error occurred.',
+      errorMessage: error.message || 'An unexpected application error occurred.',
     };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Internal logging without exposing raw stack traces to the end user
     console.error('ErrorBoundary caught an error:', error.name, errorInfo);
   }
 
